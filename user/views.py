@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.shortcuts import render, redirect
 from django.db import IntegrityError
 from .models import User
+from parking_lot.models import Parking_Lot
 
 @api_view(['POST'])
 def Create_User(request):
@@ -20,7 +21,8 @@ def Create_User(request):
         new_user = User(
             user_name=data['user_name'].lower(),
             psswd=data['psswd'],
-            type_user=data['type_user']
+            type_user=data['type_user'],
+            parking_lot = Parking_Lot.objects.get(name = data['parking_lot'])
         )
         try:
             new_user.save()
@@ -71,13 +73,35 @@ def Login(request):
 	if user is not None:
 		result = True
 		message = "Success"
-	return Response({'result':result, 'message':message})
+	try:
+		r = Response({'result':result, 'message':message,'parking_lot':user.parking_lot.name,'type_user':user.type_user})
+	except Exception as e:
+		r = Response({'result':result})
+	return r
+	
+
+@api_view(['GET'])
+def Get_User(request):
+	u = User.objects.get(pk = request.data['pk'])
+	return Response({
+		"user_name": u.user_name,
+		"psswd": u.psswd,
+		"type_user": u.type_user
+	})
 
 
 
-
-
-
+@api_view(['GET'])
+def List_User(request):
+	return Response([
+		{
+			'pk':i.pk,
+			"user":i.user_name,
+			"psswd":i.psswd,
+			"type_user":i.type_user
+		}
+		for i in User.objects.all()
+	])
 
 
 

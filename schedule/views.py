@@ -3,13 +3,16 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import render, redirect
 from django.db import IntegrityError
-from .models import Schedule, Range_Fee
+from .models import Schedule, Range_Fee, Consecutive
 from car.models import Car
 from parking_lot.models import Parking_Lot
 from user.models import User
 from datetime import datetime
 from history.models import History_Schedule
+from from_number_to_letters import Thousands_Separator
 import pytz
+
+tarifa = 0
 
 def isNumeric(s):
     try:
@@ -57,7 +60,8 @@ def Operations_Schedule(request):
 
 		car = Car(
 			plate = data['plate'],
-			type_car = type_car
+			type_car = type_car,
+			parking_lot = Parking_Lot.objects.get(name = data['parking_lot'])
 		)
 		try:
 			car.save()
@@ -70,10 +74,13 @@ def Operations_Schedule(request):
 		schedule = None
 	
 	if schedule is None:
+		print(data,'INFORMATION')
+		c = Consecutive.objects.get(parking_lot = Parking_Lot.objects.get(name = data['parking_lot']))
 		schedule = Schedule(
+				consecutive = c.number,
 				active = True,
 				cart = car,
-				user = User.objects.get(pk = data['pk_user']),
+				user = User.objects.get(user_name = data['pk_user'].lower()),
 				parking_lot = Parking_Lot.objects.get(name = data['parking_lot']),
 				helmet = data['helmet'] if type_car == 1 else 0,
 				note = data['note'],
@@ -81,21 +88,24 @@ def Operations_Schedule(request):
 				exit = Hour()
 			)
 		schedule.save()
+		c.number += 1
+		c.save()
 		print("Ya grabe",schedule)
 		message = f"Ingreso el vehiculo de placa {data['plate']}"
 		result = True
 
 	elif schedule is not None and schedule.active:
-		print("Voy a eliminar")
 		schedule.active = False
 		schedule.exit = datetime.now()
 		schedule.save()
+		price = Get_Price(int((i.exit - i.entrance).total_seconds() / 60 ))
 		History_Schedule(
 			entrance = schedule.entrance,
-			exit = Hour(),
+			exit = schedule.exit,
 			cart = schedule.cart,
 			user = schedule.user,
-			parking_lot = schedule.parking_lot
+			parking_lot = schedule.parking_lot,
+			total = price
 		).save()
 		message = f"Salio el carro de placa {data['plate']}"
 		result = True
@@ -123,8 +133,9 @@ def GET_LIST(request):
 	])
 
 
-def Get_Price(minutes):
-	minutes = 62
+def Get_Price(_minutes):
+	global tarifa
+	minutes = _minutes
 	found_range = None
 	price_to_charge = None
 	ranges_list = [
@@ -138,6 +149,7 @@ def Get_Price(minutes):
 	    if r['time'][0] <= minutes <= r['time'][1]:
 	        found_range = r
 	        price_to_charge = r['price']
+	        tarifa = price_to_charge
 	        break
 
 	if found_range:
@@ -149,22 +161,33 @@ def Get_Price(minutes):
 
 @api_view(['GET'])
 def Get_Last_Record(request):
+	global tarifa
 	i = Schedule.objects.get(cart = Car.objects.get(plate=request.data['plate']))
 	price = 0
-
+	hora_formateada = 0
 	if not i.active:
 		Schedule.objects.get(cart = Car.objects.get(plate=request.data['plate'])).delete()
 		price = Get_Price(int((i.exit - i.entrance).total_seconds() / 60 ))
+		m = (i.exit - i.entrance).total_seconds() / 60
+		horas = int(m // 60)
+		minutos = int(m % 60)
+		print(horas)
+		print(minutos)
+		hora_formateada = "{:02d}:{:02d}{}".format(horas % 12, minutos,"Hrs")
+
+
 	return Response({
 		'entrance': Hour(),
 		'date_entrance': i.exit.strftime('%d/%m/%Y'),
 		'date_exit': i.exit.strftime('%d/%m/%Y') if i.exit.strftime('%H:%M') != i.entrance.strftime('%H:%M') else 'Aún no sale',
 		'exit': Hour(),
-		'plate':i.cart.plate,
+		'plate':i.cart.plate.upper(),
 		'type_car':'Carro' if int(i.cart.type_car) == 2 else 'Moto',
 		'date':i.entrance.strftime('%d-%m-%Y'),
-		'total':price,
+		'total':Thousands_Separator(round(price)),
 		"helmet" : i.helmet,
 		'note':i.note if i.note is not None else 'No tiene',
-		'user':i.user.user_name.capitalize()
+		'user':i.user.user_name.capitalize(),
+		"total_minutes":hora_formateada,
+		"tarifa":tarifa
 	})

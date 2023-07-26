@@ -11,6 +11,7 @@ class History_Schedule(models.Model):
 	user = models.ForeignKey(User, on_delete= models.CASCADE)
 	parking_lot = models.ForeignKey(Parking_Lot, on_delete= models.CASCADE)
 	active = models.BooleanField(default = False)
+	total = models.IntegerField(null = True, blank = True)
 
 	def Calculate_Amount(self):
 		entrance = datetime.fromisoformat(str(self.entrance))

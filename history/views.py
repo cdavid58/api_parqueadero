@@ -4,16 +4,18 @@ from rest_framework.response import Response
 from django.shortcuts import render, redirect
 from django.db import IntegrityError
 from .models import * 
+from datetime import timedelta
 
 @api_view(['GET'])
 def Get_History(request):
+	print(str((datetime.strptime(History_Schedule.objects.last().exit.strftime('%H:%M'), "%H:%M")- timedelta(hours=5)).strftime("%H:%M")))
 	return Response(
 		[
 			{
-				'entrance': i.entrance.strftime('%H:%M'),
+				'entrance': str((datetime.strptime(i.entrance.strftime('%H:%M'), "%H:%M")- timedelta(hours=5)).strftime("%H:%M")),
 				'date_entrance': i.entrance.strftime('%d/%m/%Y'),
 				'date_exit': i.exit.strftime('%d/%m/%Y'),
-				'exit': i.exit.strftime('%H:%M'),
+				'exit': str((datetime.strptime(i.exit.strftime('%H:%M'), "%H:%M")- timedelta(hours=5)).strftime("%H:%M")),
 				'plate':i.cart.plate,
 				'type_car':'Carro' if int(i.cart.type_car) == 2 else 'Moto',
 				'date':i.entrance.strftime('%d-%m-%Y'),

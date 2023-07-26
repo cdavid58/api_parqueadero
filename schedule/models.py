@@ -11,7 +11,15 @@ class Range_Fee(models.Model):
 	def __str__(self):
 		return 'Horas -> '+str(self.start)+' - '+str(self.end)+' | Precio: '+str(self.price)
 
+class Consecutive(models.Model):
+	number = models.IntegerField()
+	parking_lot = models.ForeignKey(Parking_Lot, on_delete= models.CASCADE)
+
+	def __str__(self):
+		return str(self.number)+' - '+self.parking_lot.name
+
 class Schedule(models.Model):
+	consecutive = models.IntegerField(null=True,blank = True)
 	entrance = models.DateTimeField(auto_now_add=True)
 	exit = models.DateTimeField(auto_now_add=True)
 	active = models.BooleanField(default = True)
