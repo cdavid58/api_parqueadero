@@ -49,12 +49,12 @@ def Operations_Schedule(request):
 	message = "No se creo el registro"
 	try:
 		car = Car.objects.get(plate = data['plate'])
+		print(car)
 	except Car.DoesNotExist as e:
 		car = None
 		print(e)
 
 	if car is None:
-		print(data['plate'][-1])
 		if isNumeric(data['plate'][-1]):
 			type_car = 2 # Carro
 
@@ -72,9 +72,10 @@ def Operations_Schedule(request):
 		schedule = Schedule.objects.get(cart = car)
 	except Schedule.DoesNotExist:
 		schedule = None
+
+	print(schedule)
 	
 	if schedule is None:
-		print(data,'INFORMATION')
 		c = Consecutive.objects.get(parking_lot = Parking_Lot.objects.get(name = data['parking_lot']))
 		schedule = Schedule(
 				consecutive = c.number,
@@ -84,13 +85,12 @@ def Operations_Schedule(request):
 				parking_lot = Parking_Lot.objects.get(name = data['parking_lot']),
 				helmet = data['helmet'] if type_car == 1 else 0,
 				note = data['note'],
-				entrance = Hour(),
-				exit = Hour()
+				entrance = datetime.now(),
+				exit = datetime.now()
 			)
 		schedule.save()
 		c.number += 1
 		c.save()
-		print("Ya grabe",schedule)
 		message = f"Ingreso el vehiculo de placa {data['plate']}"
 		result = True
 
@@ -98,18 +98,19 @@ def Operations_Schedule(request):
 		schedule.active = False
 		schedule.exit = datetime.now()
 		schedule.save()
-		price = Get_Price(int((i.exit - i.entrance).total_seconds() / 60 ))
+		# print(schedule.exit)
+		# print(schedule.entrance)
+		# price = Get_Price(int((schedule.exit - schedule.entrance).total_seconds() / 60 ))
 		History_Schedule(
 			entrance = schedule.entrance,
 			exit = schedule.exit,
 			cart = schedule.cart,
 			user = schedule.user,
 			parking_lot = schedule.parking_lot,
-			total = price
+			total = 0
 		).save()
 		message = f"Salio el carro de placa {data['plate']}"
 		result = True
-		# schedule.delete()
 	return Response({'result': result, 'message': message})
 
 
@@ -171,9 +172,8 @@ def Get_Last_Record(request):
 		m = (i.exit - i.entrance).total_seconds() / 60
 		horas = int(m // 60)
 		minutos = int(m % 60)
-		print(horas)
-		print(minutos)
 		hora_formateada = "{:02d}:{:02d}{}".format(horas % 12, minutos,"Hrs")
+		
 
 
 	return Response({
